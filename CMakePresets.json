@@ -73,6 +73,13 @@
       }
     },
     {
+      "name": "ci-windows-arm-64",
+      "inherits": "ci",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "OFF"
+      }
+    },
+    {
       "name": "vcpkg",
       "inherits": "base",
       "displayName": "vcpkg deps",
@@ -173,6 +180,17 @@
       "displayName": "Win64 (Visual Studio)",
       "description": "Visual Studio-based x64 build with vcpkg dependencies.",
       "architecture": "x64"
+    },
+    {
+      "name": "win-arm64",
+      "inherits": "vs2022",
+      "displayName": "WinARM64 (Visual Studio)",
+      "description": "Visual Studio-based ARM64 build with vcpkg dependencies.",
+      "architecture": "ARM64",
+      "toolset": "host=arm64",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "arm64-windows"
+      }
     },
     {
       "name": "macOS",

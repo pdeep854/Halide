@@ -35,21 +35,35 @@ jobs:
   windows:
     if: "!contains(github.event.pull_request.labels.*.name, 'skip_buildbots')"
     name: windows-${{ matrix.bits }} / ${{ matrix.uv_group }}
-    runs-on: windows-2022
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        bits: [ "32" ]  # Intentionally not 64, as we haven't configured self-hosted runners for it yet.
+        # "64" is intentionally omitted, as we haven't configured self-hosted x64 runners for it yet.
+        bits: [ "32", "arm-64" ]
         uv_group: [ "ci-llvm-main", "ci-llvm-23", "ci-llvm-22" ]
         include:
           - bits: 32
+            runner: windows-2022
             # A 64-bit compiler targeting x86, rather than the 32-bit one, so
             # that large translation units don't exhaust its address space.
             arch: amd64_x86
+            preset: ci-windows-x86-32
             python: cpython-3.12-windows-x86_64-none
-          # - bits: 64  # Intentionally not 64, as we haven't configured self-hosted runners for it yet.
+            python_platform: i686-pc-windows-msvc
+          # ARM64 support — native Windows on Arm runner (Arm AppReady Build stage).
+          - bits: arm-64
+            runner: windows-11-arm
+            arch: arm64
+            preset: ci-windows-arm-64
+            python: cpython-3.10.20-windows-aarch64-none
+            python_platform: aarch64-pc-windows-msvc
+          # - bits: 64  # Intentionally not 64, as we haven't configured self-hosted x64 runners for it yet.
+          #   runner: windows-2022
           #   arch: x64
-          #   python: cpython-3.12-windows-x86_64-none
+          #   preset: ci-windows-x86-64
+          #   python: cpython-3.10.20-windows-x86_64-none
+          #   python_platform: x86_64-pc-windows-msvc
 
     steps:
       - uses: actions/checkout@v7
@@ -68,7 +82,7 @@ jobs:
             | awk -F'==' '/^halide-llvm==/ { gsub(/ .*/, "", $2); print $2 }')
 
           uv sync --frozen --python '${{ matrix.python }}' --group ci-base --no-install-workspace
-          uv pip install --python-platform i686-pc-windows-msvc --only-binary :all: \
+          uv pip install --python-platform '${{ matrix.python_platform }}' --only-binary :all: \
             --extra-index-url https://pypi.halide-lang.org/simple/ \
             "halide-llvm==${LLVM_VER}"
 
@@ -79,7 +93,7 @@ jobs:
         run: echo "Halide_LLVM_ROOT=$(halide-llvm --prefix)" >> "$GITHUB_ENV"
 
       - name: Configure CMake
-        run: cmake --preset ci-windows-x86-${{ matrix.bits }}
+        run: cmake --preset ${{ matrix.preset }}
 
       - name: Initial build
         run: cmake --build build
