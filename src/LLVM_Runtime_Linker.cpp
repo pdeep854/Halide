@@ -395,8 +395,14 @@ llvm::DataLayout get_data_layout_for_target(Target target) {
                 return llvm::DataLayout("e-m:o-i64:64-i128:128-n32:64-S128-Fn32");
             } else if (target.os == Target::MacOS) {
                 return llvm::DataLayout("e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32");
-            } else if (target.os == Target::Windows) {
+            } else if (target.os == Target::Windows && !target.has_feature(Target::JIT)) {
                 return llvm::DataLayout("e-m:w-p:64:64-i32:32-i64:64-i128:128-n32:64-S128-Fn32");
+            } else if (target.os == Target::Windows) {
+                // JIT on Windows ARM64 emits ELF objects (see
+                // get_triple_for_target), so use ELF mangling (m:e) and the
+                // matching layout the ELF execution engine expects, mirroring
+                // the x86-64 Windows JIT path above.
+                return llvm::DataLayout("e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32");
             } else {
                 return llvm::DataLayout("e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32");
             }
@@ -542,9 +548,12 @@ llvm::Triple get_triple_for_target(const Target &target) {
             triple.setOS(llvm::Triple::Win32);
             triple.setEnvironment(llvm::Triple::MSVC);
             if (target.has_feature(Target::JIT)) {
-                // TODO(shoaibkamil): figure out a way to test this.
-                // Currently blocked by https://github.com/halide/Halide/issues/5040
-                user_error << "No JIT support for this OS/CPU combination yet.\n";
+                // Use ELF for jitting, mirroring the x86-64 Windows path
+                // above. The COFF dynamic loader in LLVM's ORC/MCJIT lacks
+                // support for some AArch64 relocations, whereas the ELF
+                // loader handles them, so emit ELF objects when jitting on
+                // Windows ARM64.
+                triple.setObjectFormat(llvm::Triple::ELF);
             }
         } else if (target.os == Target::Fuchsia) {
             triple.setOS(llvm::Triple::Fuchsia);
