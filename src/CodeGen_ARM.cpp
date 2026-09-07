@@ -90,7 +90,7 @@ class SubstituteInStridedLoads : public IRMutator {
             var &&
             poisoned_vars.count(var->name) == 0 &&
             op->vectors.size() == 1 &&
-            2 <= slice->stride && slice->stride <= 4 &&
+            2 <= slice->stride && slice->stride <= 8 &&
             slice->begin < slice->stride &&
             (vec = loads.find(var->name))) {
             return Shuffle::make_slice({*vec}, slice->begin, slice->stride, op->type.lanes());
@@ -2080,7 +2080,7 @@ void CodeGen_ARM::visit(const Shuffle *op) {
         load &&
         op->vectors.size() == 1 &&
         slice &&
-        2 <= stride && stride <= 4 &&
+        2 <= stride && stride <= 8 &&
         slice->begin < stride &&
         load->type.lanes() == stride * op->type.lanes()) {
 
