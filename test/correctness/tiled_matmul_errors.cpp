@@ -16,7 +16,10 @@ using namespace Halide;
 
 namespace {
 
-const Target amx_target("x86-64-linux-avx512_sapphirerapids");
+static const Target &amx_target() {
+    static const Target t("x86-64-linux-avx512_sapphirerapids");
+    return t;
+}
 
 // Apply a stock AMX matmul schedule to `mm` (with reduction var `r`) and
 // the given tile sizes.
@@ -59,7 +62,7 @@ void scenario_too_large() {
     mm(x, y) = cast<int32_t>(0);
     mm(x, y) += cast<int32_t>(A(r, y)) * cast<int32_t>(B(r % 4, x, r / 4));
     schedule_matmul(mm, r.x, /*tile_x=*/32, /*tile_y=*/16, /*tile_r=*/8);
-    mm.in().compile_jit(amx_target);
+    mm.in().compile_jit(amx_target());
 }
 
 // A tile allocated for a non-i32/f32 result. AMX always accumulates into
@@ -75,7 +78,7 @@ void scenario_bad_result_type() {
     mm(x, y) = cast<int16_t>(0);
     mm(x, y) += cast<int16_t>(A(r, y)) * cast<int16_t>(B(r % 4, x, r / 4));
     schedule_matmul(mm, r.x, 8, 8, 8);
-    mm.in().compile_jit(amx_target);
+    mm.in().compile_jit(amx_target());
 }
 
 // The most natural form of an int8 matmul: row-major LHS and RHS, no VNNI
@@ -92,7 +95,7 @@ void scenario_naive_rhs() {
     mm(x, y) = cast<int32_t>(0);
     mm(x, y) += cast<int32_t>(A(r, y)) * cast<int32_t>(B(x, r));
     schedule_matmul(mm, r.x, 8, 8, 8);
-    mm.in().compile_jit(amx_target);
+    mm.in().compile_jit(amx_target());
 }
 
 // A gather-style matmul with an indirect row index — natural for sparse /
@@ -112,7 +115,7 @@ void scenario_indirect() {
         cast<int32_t>(A(r, clamp(row_indices(y), 0, 10))) *
         cast<int32_t>(B(r % 4, x, r / 4));
     schedule_matmul(mm, r.x, 8, 8, 8);
-    mm.in().compile_jit(amx_target);
+    mm.in().compile_jit(amx_target());
 }
 
 // A matmul over uint8 buffers whose values are reinterpreted as int8 before
@@ -132,7 +135,7 @@ void scenario_sign_changing_cast() {
         cast<int32_t>(cast<int8_t>(A(r, y))) *
         cast<int32_t>(cast<int8_t>(B(r % 4, x, r / 4)));
     schedule_matmul(mm, r.x, 8, 8, 8);
-    mm.in().compile_jit(amx_target);
+    mm.in().compile_jit(amx_target());
 }
 
 // A 1D convolution of a 2D signal with per-row kernels, aggressively
@@ -153,7 +156,7 @@ void scenario_conv1d() {
         cast<int32_t>(input(x + r, y)) *
         cast<int32_t>(kernels(r % 4, x, r / 4));
     schedule_matmul(conv, r.x, 8, 8, 8);
-    conv.in().compile_jit(amx_target);
+    conv.in().compile_jit(amx_target());
 }
 
 // A non-matmul value scheduled into a tile allocation by mistake.
@@ -169,7 +172,7 @@ void scenario_no_matmul() {
         .vectorize(y, 8);
 
     f.in().tile(x, y, xo, yo, xi, yi, 8, 8).vectorize(xi).vectorize(yi);
-    f.in().compile_jit(amx_target);
+    f.in().compile_jit(amx_target());
 }
 
 // A user wants i16 × i16 → i32, expecting AMX to widen-multiply 16-bit
@@ -187,7 +190,7 @@ void scenario_widening_16bit() {
     mm(x, y) = cast<int32_t>(0);
     mm(x, y) += cast<int32_t>(A(r, y)) * cast<int32_t>(B(r % 4, x, r / 4));
     schedule_matmul(mm, r.x, 8, 8, 8);
-    mm.in().compile_jit(amx_target);
+    mm.in().compile_jit(amx_target());
 }
 
 // Two matmuls into the same allocation with tiles of the same rank but
@@ -226,7 +229,7 @@ void scenario_mismatched_strides() {
     mm.compute_at(mm.in(), x).tile(x, y, ixi, iyi, 8, 8).vectorize(ixi).vectorize(iyi);
     Var mmxi("mmxi"), mmyi("mmyi");
     mm.in().tile(x, y, mmxi, mmyi, 8, 8).vectorize(mmxi).vectorize(mmyi);
-    mm.in().compile_jit(amx_target);
+    mm.in().compile_jit(amx_target());
 }
 
 // A user gives the same Func two update definitions that each store into
@@ -277,7 +280,7 @@ void scenario_inconsistent_tiles() {
         .vectorize(mmxi)
         .vectorize(mmyi);
 
-    mm.in().compile_jit(amx_target);
+    mm.in().compile_jit(amx_target());
 }
 
 // A reduction inside a tile that's a sum-of-something-else, not a
@@ -319,7 +322,7 @@ void scenario_not_a_matmul_pattern() {
         .vectorize(mmxi)
         .vectorize(mmyi);
 
-    mm.in().compile_jit(amx_target);
+    mm.in().compile_jit(amx_target());
 }
 
 // Multiplication of a matrix by a value. In theory we could materialize the
@@ -334,7 +337,7 @@ void scenario_matmul_by_constant() {
     mm(x, y) = cast<int32_t>(0);
     mm(x, y) += cast<int32_t>(A(r, y)) * select(x == r, cast<int8_t>(3), cast<int8_t>(0));
     schedule_matmul(mm, r.x, 8, 8, 8);
-    mm.in().compile_jit(amx_target);
+    mm.in().compile_jit(amx_target());
 }
 
 }  // namespace
@@ -342,6 +345,11 @@ void scenario_matmul_by_constant() {
 int main(int argc, char **argv) {
     if (!Halide::exceptions_enabled()) {
         printf("[SKIP] Halide was compiled without exceptions.\n");
+        return 0;
+    }
+
+    if (Halide::get_host_target().arch != Halide::Target::X86) {
+        printf("[SKIP] AMX error-checking tests require an x86-64 host.\n");
         return 0;
     }
 

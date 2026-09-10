@@ -1,7 +1,7 @@
 #include "HalideRuntime.h"
 #include <stdio.h>
 
-#if defined(_MSC_VER) || defined(__x86_64__) || defined(__i386__)
+#if (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))) || defined(__x86_64__) || defined(__i386__)
 #define TESTING_ON_X86 1
 #else
 #define TESTING_ON_X86 0

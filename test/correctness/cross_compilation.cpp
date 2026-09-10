@@ -102,7 +102,9 @@ int main(int argc, char **argv) {
         // Ensure that HVX codegen has a submodule, since that is a unique path
         // that isn't exercised otherwise
         if (Target(t).has_feature(Target::HVX)) {
+#ifdef WITH_HEXAGON
             j.hexagon();
+#endif
         }
 
         j.compile_to(outputs, j.infer_arguments(), "", target);

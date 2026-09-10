@@ -1487,14 +1487,18 @@ int main(int argc, char **argv) {
 
         // For SME2, try to select a target which runs natively if possible.
         auto host_target = get_host_target();
-        int svb = host_target.has_feature(Target::SME2) ? host_target.sme_streaming_vector_bits() : 512;
-        Target::Feature sme_svl = Target::sme_svl_feature_from_bits(svb);
-        if (sme_svl == Target::FeatureEnd) {
-            std::cerr << "Unsupported SME SVL " << svb << "\n";
-            return 1;
+        // SME2 scalable vector types are not yet legalized for the Windows ABI
+        // in LLVM.
+        if (host_target.os != Target::Windows) {
+            int svb = host_target.has_feature(Target::SME2) ? host_target.sme_streaming_vector_bits() : 512;
+            Target::Feature sme_svl = Target::sme_svl_feature_from_bits(svb);
+            if (sme_svl == Target::FeatureEnd) {
+                std::cerr << "Unsupported SME SVL " << svb << "\n";
+                return 1;
+            }
+            auto sme_target = Target(host_target.os, Target::ARM, 64, Target::ProcessorGeneric, {Target::SME2, sme_svl});
+            targets.emplace_back(sme_target);
         }
-        auto sme_target = Target(host_target.os, Target::ARM, 64, Target::ProcessorGeneric, {Target::SME2, sme_svl});
-        targets.emplace_back(sme_target);
     }
 
     return SimdOpCheckTest::main<SimdOpCheckArmSve>(argc, argv, targets);

@@ -418,6 +418,13 @@ void CodeGen_C::add_vector_typedefs(const std::set<Type> &vector_types) {
         for (const auto &t : vector_types) {
             string name = print_type(t, DoNotAppendSpace);
             string scalar_name = print_type(t.element_of(), DoNotAppendSpace);
+            // On MSVC ARM64 (but not Clang targeting ARM64), names like int32x4_t and
+            // uint8x16_t are ARM NEON built-in types defined by the compiler.
+            if (name.size() >= 2 && name.substr(name.size() - 2) == "_t") {
+                stream << "#if defined(_M_ARM64) && !defined(__clang__)\n";
+                stream << "#define " << name << " halide_cpp_" << name << "\n";
+                stream << "#endif\n";
+            }
             stream << "#if halide_cpp_use_native_vector(" << scalar_name << ", " << t.lanes() << ")\n";
             stream << "using " << name << " = NativeVector<" << scalar_name << ", " << t.lanes() << ">;\n";
             stream << "using " << name << "_ops = NativeVectorOps<" << scalar_name << ", " << t.lanes() << ">;\n";

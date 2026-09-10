@@ -42,6 +42,14 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    // High-performance Windows ARM64 chips (e.g. Snapdragon X / Oryon) have
+    // hardware fdiv throughput that matches or beats the frecpe+frecps
+    // approximation sequence, so the performance assumption does not hold.
+    if (target.os == Target::Windows && target.arch == Target::ARM) {
+        printf("[SKIP] Windows ARM64 platforms have fast hardware division; fast_inverse is not expected to win.\n");
+        return 0;
+    }
+
     Func slow, fast;
     Var x;
     Param<float> p(1.0f);
