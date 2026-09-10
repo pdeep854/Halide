@@ -57,7 +57,7 @@ jobs:
             runner: windows-11-arm
             arch: arm64
             preset: ci-windows-arm-64
-            python: cpython-3.10.20-windows-aarch64-none
+            python: cpython-3.12-windows-aarch64-none
             python_platform: aarch64-pc-windows-msvc
           # - bits: 64  # Intentionally not 64, as we haven't configured self-hosted x64 runners for it yet.
           #   runner: windows-2022
