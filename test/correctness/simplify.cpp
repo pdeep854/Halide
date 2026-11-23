@@ -1,4 +1,6 @@
 #include "Halide.h"
+#include <cfenv>
+#include <cmath>
 
 using namespace Halide;
 using namespace Halide::Internal;
@@ -2221,7 +2223,12 @@ void check_math() {
     check(Halide::floor(0.98f), 0.0f);
     check(Halide::ceil(0.98f), 1.0f);
     check(Halide::round(0.6f), 1.0f);
-    check(Halide::round(-0.5f), 0.0f);
+    // round(-0.5) ties-to-even: result is 0 but sign depends on platform.
+    // Use nearbyint to match the constant folder's own computation.
+    {
+        std::fesetround(FE_TONEAREST);
+        check(Halide::round(-0.5f), (float)std::nearbyint(-0.5));
+    }
     check(Halide::trunc(-1.6f), -1.0f);
     check(Halide::floor(round(x)), round(x));
     check(Halide::ceil(ceil(x)), ceil(x));

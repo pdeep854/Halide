@@ -2067,12 +2067,11 @@ void CodeGen_ARM::visit(const Load *op) {
 }
 
 void CodeGen_ARM::visit(const Shuffle *op) {
-    // For small strided loads on non-Apple hardware, we may want to use vld2,
-    // vld3, vld4, etc. These show up in the IR as slice shuffles of wide dense
-    // loads. LLVM expects the same. The base codegen class breaks the loads
-    // into native vectors, which triggers shuffle instructions rather than
-    // vld2, vld3, vld4. So here we explicitly do the load as a single big dense
-    // load.
+    // For small strided loads on non-Apple hardware, we emit a single wide dense
+    // load and let LLVM lower it to ARM structured loads (vld2/vld3/vld4 for
+    // strides 2-4) or a software deinterleave (strides 5-8). The base codegen
+    // class breaks loads into native vectors first, which prevents LLVM from
+    // recognising the structured-load pattern, so we bypass it here.
     auto slice = op->is_slice();
     const int stride = slice ? slice->stride : 0;
     const Load *load = op->vectors[0].as<Load>();

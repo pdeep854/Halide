@@ -837,8 +837,7 @@ Expr Simplify::visit(const Call *op, ExprInfo *info) {
                     {"floor_f32", std::floor},
                     {Call::get_intrinsic_name(Call::round), [](double a) -> double {
                          std::fesetround(FE_TONEAREST);
-                         a = std::nearbyint(a);
-                         return a;
+                         return std::nearbyint(a);
                      }},
                     {Call::get_intrinsic_name(Call::round_half_away), [](double a) -> double {
                          return std::round(a);
