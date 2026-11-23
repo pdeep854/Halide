@@ -494,11 +494,20 @@ endforeach ()
 set(HALIDE_H "${Halide_BINARY_DIR}/include/Halide.h")
 set(LICENSE_PATH "${Halide_SOURCE_DIR}/LICENSE.txt")
 set(headers "$<TARGET_PROPERTY:Halide,HEADER_SET_private_headers>")
+
+# Write all header paths one-per-line into a response file so that
+# build_halide_h can be invoked with @rspfile instead of listing all ~180
+# paths directly on the command line, which exceeds cmd.exe's 8191-character
+# bat-file line limit on Windows.
+set(HALIDE_H_RSP "${Halide_BINARY_DIR}/build_halide_h_headers.rsp")
+file(GENERATE OUTPUT "${HALIDE_H_RSP}"
+    CONTENT "$<JOIN:${headers},\n>")
+
 add_custom_command(
     OUTPUT "${HALIDE_H}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<SHELL_PATH:${Halide_BINARY_DIR}/include>"
     COMMAND
-        build_halide_h "$<SHELL_PATH:${LICENSE_PATH}>" "${headers}" > "$<SHELL_PATH:${HALIDE_H}>.tmp"
+        build_halide_h "$<SHELL_PATH:${LICENSE_PATH}>" "@$<SHELL_PATH:${HALIDE_H_RSP}>" > "$<SHELL_PATH:${HALIDE_H}>.tmp"
     COMMAND
         ${CMAKE_COMMAND} -E copy_if_different "$<SHELL_PATH:${HALIDE_H}>.tmp"
         "$<SHELL_PATH:${HALIDE_H}>"

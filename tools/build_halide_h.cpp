@@ -63,7 +63,7 @@ void dump_header(const std::string &header) {
 int main(int argc, char **argv) {
 
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s LICENSE.txt [headers...]\n", argv[0]);
+        fprintf(stderr, "Usage: %s LICENSE.txt [@response_file | headers...]\n", argv[0]);
         exit(1);
     }
 
@@ -84,7 +84,30 @@ int main(int argc, char **argv) {
         fclose(f);
     }
 
-    listed.insert(argv + 2, argv + argc);
+    for (int i = 2; i < argc; i++) {
+        if (argv[i][0] == '@') {
+            // Response file: one header path per line. Avoids command-line
+            // length limits on Windows (cmd.exe caps bat-file lines at 8191 chars).
+            FILE *rsp = fopen(argv[i] + 1, "r");
+            if (!rsp) {
+                fprintf(stderr, "Could not open response file %s.\n", argv[i] + 1);
+                exit(1);
+            }
+            char path[4096];
+            while (fgets(path, sizeof(path), rsp)) {
+                size_t len = strlen(path);
+                while (len > 0 && (path[len - 1] == '\n' || path[len - 1] == '\r')) {
+                    path[--len] = '\0';
+                }
+                if (len > 0) {
+                    listed.insert(path);
+                }
+            }
+            fclose(rsp);
+        } else {
+            listed.insert(argv[i]);
+        }
+    }
 
     fprintf(stdout, "\n*/\n\n");
     fprintf(stdout, "#ifndef HALIDE_H\n");
